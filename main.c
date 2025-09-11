@@ -1,4 +1,5 @@
 #include <stdbool.h>
+#include <stdlib.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -119,25 +120,115 @@ void print_tab(const Tabuleiro *t, unsigned int n)
   printf("┛\n");
 }
 
+// bool alinhado(Tabuleiro *t, Coordenada coordenada_anterior)
+// preciso olhar se a jogada atual 
+
 bool insercao_valida(Tabuleiro *t, unsigned int linha, unsigned int coluna, unsigned int n, Coordenada coordenada_anterior, int contador_de_jogadas)
 {
   if (linha >= n || coluna >= n)
-  {
     return false;
-  }
 
   Casa casa_alvo_atual = t->grid[linha][coluna];
 
   if (casa_alvo_atual == BRANCO || casa_alvo_atual == PRETO)
     return false;
 
-  if(contador_de_jogadas > 0)
+  if (contador_de_jogadas > 0)
   {
-  unsigned int linha_anterior = coordenada_anterior.linha;
-  unsigned int coluna_anterior = coordenada_anterior.coluna;
+    unsigned int linha_anterior = coordenada_anterior.linha;
+    unsigned int coluna_anterior = coordenada_anterior.coluna;
+    Casa tipo_casa_anterior = t->grid[linha_anterior][coluna_anterior];
 
-  Casa tipo_casa_anterior = t->grid[linha_anterior][coluna_anterior];
-  if(casa_alvo_atual != tipo_casa_anterior) return false;
+    switch (tipo_casa_anterior)
+    {
+
+    case DIAGONAL_SECUNDARIA:
+    {
+      bool existe_jogada_obrigatoria = false;
+
+      // Procura na diagonal Cima-Direita
+      if (!existe_jogada_obrigatoria)
+      {
+        for (int i = 1; i <= linha_ant && coluna_ant + i < N; ++i)
+        {
+          if (t->grid[linha_ant - i][coluna_ant + i] != BRANCO && t->grid[linha_ant - i][coluna_ant + i] != PRETO)
+          {
+            existe_jogada_obrigatoria = true;
+            break;
+          }
+        }
+      }
+      // Procura na diagonal Baixo-Esquerda
+      if (!existe_jogada_obrigatoria)
+      {
+        for (int i = 1; linha_ant + i < N && i <= coluna_ant; ++i)
+        {
+          if (t->grid[linha_ant + i][coluna_ant - i] != BRANCO && t->grid[linha_ant + i][coluna_ant - i] != PRETO)
+          {
+            existe_jogada_obrigatoria = true;
+            break;
+          }
+        }
+      }
+      // 4. Procura na diagonal Cima-Esquerda
+      if (!existe_jogada_obrigatoria)
+      {
+        for (int i = 1; i <= linha_ant && i <= coluna_ant; ++i)
+        {
+          if (t->grid[linha_ant - i][coluna_ant - i] != BRANCO && t->grid[linha_ant - i][coluna_ant - i] != PRETO)
+          {
+            existe_jogada_obrigatoria = true;
+            break;
+          }
+        }
+      }
+
+      if (existe_jogada_obrigatoria)
+      {
+        bool esta_na_diagonal = (abs((int)linha_atual - (int)linha_ant) == abs((int)coluna_atual - (int)coluna_ant));
+
+        if (!esta_na_diagonal)
+        {
+          return false;
+        }
+      }
+
+      break; // Fim do case '/'
+    case DIAGONAL_PRINCIPAL:
+      bool existe_jogada_obrigatoria = false;
+
+      // Procura na diagonal Baixo-Direita
+      for (int i = 1; linha_ant + i < N && coluna_ant + i < N; ++i)
+      {
+        if (t->grid[linha_ant + i][coluna_ant + i] != BRANCO && t->grid[linha_ant + i][coluna_ant + i] != PRETO)
+        {
+          existe_jogada_obrigatoria = true;
+          break;
+        }
+      }
+
+      // Procura na diagonal Cima-Esquerda
+      if (!existe_jogada_obrigatoria)
+      {
+        for (int i = 1; i <= linha_ant && i <= coluna_ant; ++i)
+        {
+          if (t->grid[linha_ant - i][coluna_ant - i] != BRANCO && t->grid[linha_ant - i][coluna_ant - i] != PRETO)
+          {
+            existe_jogada_obrigatoria = true;
+            break;
+          }
+        }
+      }
+
+      if (existe_jogada_obrigatoria)
+      {
+        bool esta_na_diagonal = linha == linha_anterior &&coluna = coluna_anterior;
+      }
+
+      if (!esta_na_diagonal)
+        return false;
+    }
+    }
   }
   return true;
 }
@@ -204,7 +295,9 @@ int main(void)
     else
       jogador_atual = PRETO;
   }
+
   /*Verificando se houveram jogadas especiais*/
 
   return 0;
 }
+
