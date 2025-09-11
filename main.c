@@ -138,7 +138,6 @@ bool insercao_valida(Tabuleiro *t, unsigned int linha, unsigned int coluna, unsi
     unsigned int linha_anterior = coordenada_anterior.linha;
     unsigned int coluna_anterior = coordenada_anterior.coluna;
     Casa tipo_casa_anterior = t->grid[linha_anterior][coluna_anterior];
-
     switch (tipo_casa_anterior)
     {
 
@@ -196,14 +195,16 @@ bool insercao_valida(Tabuleiro *t, unsigned int linha, unsigned int coluna, unsi
       break; // Fim do case '/'
     case DIAGONAL_PRINCIPAL:
       bool existe_jogada_obrigatoria = false;
-
-      // Procura na diagonal Baixo-Direita
-      for (int i = 1; linha_ant + i < N && coluna_ant + i < N; ++i)
+      if(!existe_jogada_obrigatoria)
       {
-        if (t->grid[linha_ant + i][coluna_ant + i] != BRANCO && t->grid[linha_ant + i][coluna_ant + i] != PRETO)
+        // Procura na diagonal Baixo-Direita
+        for (int i = 1; linha_ant + i < N && coluna_ant + i < N; ++i)
         {
-          existe_jogada_obrigatoria = true;
-          break;
+          if (t->grid[linha_ant + i][coluna_ant + i] != BRANCO && t->grid[linha_ant + i][coluna_ant + i] != PRETO)
+          {
+            existe_jogada_obrigatoria = true;
+            break;
+          }
         }
       }
 
@@ -223,12 +224,78 @@ bool insercao_valida(Tabuleiro *t, unsigned int linha, unsigned int coluna, unsi
       if (existe_jogada_obrigatoria)
       {
         bool esta_na_diagonal = linha == linha_anterior &&coluna = coluna_anterior;
-      }
 
       if (!esta_na_diagonal)
         return false;
+      }
+
+      break;
     }
-    }
+    case VERTICAL:
+      bool existe_jogada_obrigatoria = false;
+
+      if(!existe_jogada_obrigatoria)
+      {
+        for (int i = 1; linha_anterior + i < N; ++i)
+        {
+          if (t->grid[linha_anterior + i][coluna_anterior] != BRANCO && t->grid[linha_anterior + 1][coluna_anterior] != PRETO)
+          {
+            existe_jogada_obrigatoria = true;
+            break;
+          }
+        }
+      }
+
+      if (!existe_jogada_obrigatoria)
+      {
+        for (int i = 1; linha_anterior - i < N; ++i)
+        {
+          if (t->grid[linha_anterior - i][coluna_anterior] != BRANCO && t->grid[linha_anterior - 1][coluna_anterior] != PRETO)
+          {
+            existe_jogada_obrigatoria = true;
+            break;
+          }
+        }
+      }
+
+      if(existe_jogada_obrigatoria)
+      {
+        if(coluna != coluna_anterior)
+          return false;  
+      }
+      break;
+    case HORIZONTAL:
+      bool existe_jogada_obrigatoria = false;
+
+      if (!existe_jogada_obrigatoria)
+      {
+        for (int i = 1; coluna_anterior + i < N; ++i)
+        {
+          if (t->grid[linha_anterior][coluna_anterior + i] != BRANCO && t->grid[linha_anterior][coluna_anterior + i] != PRETO)
+          {
+            existe_jogada_obrigatoria = true;
+            break;
+          }
+        }
+      }
+
+      if (!existe_jogada_obrigatoria)
+      {
+        for (int i = 1; coluna_anterior - i < N; ++i)
+        {
+          if (t->grid[linha_anterior][coluna_anterior - i] != BRANCO && t->grid[linha_anterior][coluna_anterior - i] != PRETO)
+          {
+            existe_jogada_obrigatoria = true;
+            break;
+          }
+        }
+      }
+
+      if (existe_jogada_obrigatoria)
+      {
+        if (linha != linha_anterior)
+          return false;
+      }
   }
   return true;
 }
