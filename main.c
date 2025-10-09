@@ -243,32 +243,30 @@ int validaJogada(Tabuleiro *t, int linha, int coluna, ui n,
 void fazInsert(Tabuleiro *t, int linha, int coluna, Casa jogador_atual) {
   Casa oponente = (jogador_atual == PRETO) ? BRANCO : PRETO;
 
+  // Direções (8 vizinhos): horizontais, verticais e diagonais
   int dx[] = {-1, -1, -1, 0, 0, 1, 1, 1};
   int dy[] = {-1, 0, 1, -1, 1, -1, 0, 1};
 
+  // Percorre cada direção
   for (int dir = 0; dir < 8; ++dir) {
-    int x = linha + dx[dir];
-    int y = coluna + dy[dir];
+    int ant_x = linha - dx[dir]; // célula anterior (antes da jogada)
+    int ant_y = coluna - dy[dir];
+    int prox_x = linha + dx[dir]; // célula posterior (depois da jogada)
+    int prox_y = coluna + dy[dir];
 
-    int flip_x[N];
-    int flip_y[N];
-    int flip_count = 0;
+    // Verifica se ambas as posições estão dentro do tabuleiro
+    if (ant_x >= 0 && ant_x < N && ant_y >= 0 && ant_y < N && prox_x >= 0 &&
+        prox_x < N && prox_y >= 0 && prox_y < N) {
 
-    while (x >= 0 && x < N && y >= 0 && y < N && t->grid[x][y] == oponente) {
-      if (flip_count < N) {
-        flip_x[flip_count] = x;
-        flip_y[flip_count] = y;
-        flip_count++;
+      // Caso 1: jogador colocou NO MEIO → padrão X O X (vira)
+      if (t->grid[ant_x][ant_y] == oponente &&
+          t->grid[prox_x][prox_y] == oponente) {
+        t->grid[ant_x][ant_y] = jogador_atual;
+        t->grid[prox_x][prox_y] = jogador_atual;
       }
-      x += dx[dir];
-      y += dy[dir];
-    }
 
-    if (flip_count > 0 && x >= 0 && x < N && y >= 0 && y < N &&
-        t->grid[x][y] == jogador_atual) {
-      for (int k = 0; k < flip_count; ++k) {
-        t->grid[flip_x[k]][flip_y[k]] = jogador_atual;
-      }
+      // Caso 2: jogador colocou na ponta → X O X (onde jogador é X) → não vira
+      // Nada é feito
     }
   }
 }
