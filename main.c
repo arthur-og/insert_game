@@ -21,20 +21,22 @@ typedef struct {
   Casa grid[N][N];
 } Tabuleiro;
 
+/* Coordenada agora usa int para permitir valores sentinela (-1) */
 typedef struct {
-  ui linha;
-  ui coluna;
+  int linha;
+  int coluna;
 } Coordenada;
 
+/* protótipos */
 int contarRegiao(Tabuleiro *t, int linha, int coluna, Casa jogador,
                  bool visitado[N][N]);
 int contarMaiorArea(Tabuleiro *t, Casa jogador);
 void inicia_tab(Tabuleiro *t, ui n);
 void print_tab(const Tabuleiro *t, ui n);
-int validaJogada(Tabuleiro *t, ui linha, ui coluna, ui n,
+int validaJogada(Tabuleiro *t, int linha, int coluna, ui n,
                  Coordenada coordenada_anterior, int contador_de_jogadas);
-void inserir(Tabuleiro *t, ui linha, ui coluna, Casa peca);
-void fazInsert(Tabuleiro *t, ui linha, ui coluna, Casa jogador_atual);
+void inserir(Tabuleiro *t, int linha, int coluna, Casa peca);
+void fazInsert(Tabuleiro *t, int linha, int coluna, Casa jogador_atual);
 int verificaVitoria(Tabuleiro *t, Casa jogador_que_jogou,
                     int contador_de_jogadas);
 char *nomeJogador(Casa jogador_atual);
@@ -54,31 +56,81 @@ void salva_estado(Tabuleiro *t, Casa jogador_atual, int contador_de_jogadas,
     return;
   }
 
-  // (Opcional) escrever dimensão
-  // fprintf(fp, "%d %d\n", N, N);
-
+  // escreve o tabuleiro (sem espaços, com quebras de linha)
   for (int i = 0; i < N; i++) {
     for (int j = 0; j < N; j++) {
-      // supondo que seu tabuleiro guarda em t->mat[i][j]
-      fprintf(fp, "%c", t->grid[i][j]);
-      /*if (j < N - 1) {
-        fputc(' ', fp);
-      }*/
+      fprintf(fp, "%c", (char)t->grid[i][j]);
     }
     fputc('\n', fp);
   }
-  fprintf(fp, "%c %d %c %d %d", jogador_atual, contador_de_jogadas,
-          tipo_casa_anterior, coordenada_atual->linha,
+
+  // escreve metadados: jogador_atual, contador_de_jogadas, tipo_casa_anterior,
+  // linha, coluna Ex: X 12 - 2 3
+  fprintf(fp, "%c %d %c %d %d\n", (char)jogador_atual, contador_de_jogadas,
+          (char)tipo_casa_anterior, coordenada_atual->linha,
           coordenada_atual->coluna);
 
   if (fclose(fp) != 0) {
     perror("Erro ao fechar arquivo após salvar estado");
+  } else {
+    printf("Partida salva em 'temp'.\n");
   }
 }
 
-void carrega_partida(int *contador_de_jogadas, Tabuleiro *tab,
+void carrega_partida(int *contador_de_jogadas, Tabuleiro *t,
                      Coordenada *coordenada_anterior, Casa *tipo_casa_anterior,
-                     Casa *jogador_atual);
+                     Casa *jogador_atual) {
+  FILE *fp = fopen("temp", "r");
+  if (fp == NULL) {
+    printf("Arquivo de save 'temp' não encontrado. Iniciando jogo novo.\n");
+    return;
+  }
+
+  // Ler o grid: ler caractere por caractere em uma variável temporária
+  for (int i = 0; i < N; i++) {
+    for (int j = 0; j < N; j++) {
+      char c;
+      if (fscanf(fp, " %c", &c) != 1) {
+        printf("Arquivo de save corrompido ao ler o tabuleiro.\n");
+        fclose(fp);
+        return;
+      }
+      t->grid[i][j] = (Casa)c;
+    }
+    // após cada linha, pode haver newline; fscanf com " %c" já pula whitespace
+  }
+
+  // Ler metadados finais (se existirem)
+  char jogador_char = 0, tipo_char = 0;
+  int cont = 0, linha_ant = -1, col_ant = -1;
+  int read = fscanf(fp, " %c %d %c %d %d", &jogador_char, &cont, &tipo_char,
+                    &linha_ant, &col_ant);
+  if (read == 5) {
+    *jogador_atual = (Casa)jogador_char;
+    *contador_de_jogadas = cont;
+    *tipo_casa_anterior = (Casa)tipo_char;
+    coordenada_anterior->linha = linha_ant;
+    coordenada_anterior->coluna = col_ant;
+    printf("Partida carregada: jogador atual '%c', jogadas feitas: %d\n",
+           jogador_char, cont);
+    printf("\nCasa da rodada: %c\n", *tipo_casa_anterior);
+    printf("\nUltima jogada foi na linha %d e na coluna %d\n",
+           coordenada_anterior->linha, coordenada_anterior->coluna);
+
+  } else {
+    // Se não houver metadados, inicializa valores seguros
+    *contador_de_jogadas = 0;
+    coordenada_anterior->linha = -1;
+    coordenada_anterior->coluna = -1;
+    *tipo_casa_anterior = HORIZONTAL;
+    *jogador_atual = PRETO;
+    printf("Save sem metadados. Valores padrão aplicados.\n");
+  }
+
+  if (fclose(fp) != 0) {
+    perror("Erro ao fechar arquivo após carregar estado");
+  }
+}
 
 void inicia_tab(Tabuleiro *t, ui n) {
   // Criando um "saco" com o total de peças
@@ -88,9 +140,9 @@ void inicia_tab(Tabuleiro *t, ui n) {
   // vetor temporário armazenando as peças que vamos utilizar
   Casa pecas[] = {VERTICAL, HORIZONTAL, DIAGONAL_PRINCIPAL,
                   DIAGONAL_SECUNDARIA};
-  ui pecas_por_tipo = total_pecas / 4; // Deve dar 9 para cada tipo [cite: 44]
+  ui pecas_por_tipo = total_pecas / 4; // padrão
 
-  // Encher o saco temporário com 9 peças de cada
+  // Encher o saco temporário
   ui contador = 0;
   for (ui i = 0; i < 4; i++) {
     for (ui j = 0; j < pecas_por_tipo; j++) {
@@ -99,7 +151,7 @@ void inicia_tab(Tabuleiro *t, ui n) {
     }
   }
 
-  // Embaralharando o saco temporário
+  // Embaralhar
   for (ui i = total_pecas - 1; i > 0; i--) {
     ui j = rand() % (i + 1);
     Casa temp = saco_de_pecas[i];
@@ -107,12 +159,11 @@ void inicia_tab(Tabuleiro *t, ui n) {
     saco_de_pecas[j] = temp;
   }
 
-  // Distribuindo as peças embaralhadas no tabuleiro
+  // Preencher tabuleiro
   contador = 0;
   for (ui i = 0; i < n; i++) {
     for (ui j = 0; j < n; j++) {
-      t->grid[i][j] = saco_de_pecas[contador];
-      contador++;
+      t->grid[i][j] = saco_de_pecas[contador++];
     }
   }
 }
@@ -158,8 +209,9 @@ void print_tab(const Tabuleiro *t, ui n) {
   printf("┛\n");
 }
 
-void inserir(Tabuleiro *t, ui linha, ui coluna, Casa peca) {
-  t->grid[linha][coluna] = peca;
+void inserir(Tabuleiro *t, int linha, int coluna, Casa peca) {
+  if (linha >= 0 && linha < N && coluna >= 0 && coluna < N)
+    t->grid[linha][coluna] = peca;
 }
 
 char *nomeJogador(Casa jogador_atual) {
@@ -169,9 +221,11 @@ char *nomeJogador(Casa jogador_atual) {
     return "da rosca branca (O)";
 }
 
-int validaJogada(Tabuleiro *t, ui linha, ui coluna, ui n,
+/* validaJogada (mantive simples, apenas demonstração — você já tem
+   validações adicionais no loop principal) */
+int validaJogada(Tabuleiro *t, int linha, int coluna, ui n,
                  Coordenada coordenada_anterior, int contador_de_jogadas) {
-  if (linha >= n || coluna >= n)
+  if (linha < 0 || linha >= (int)n || coluna < 0 || coluna >= (int)n)
     return 0;
 
   Casa casa_alvo_atual = t->grid[linha][coluna];
@@ -181,36 +235,39 @@ int validaJogada(Tabuleiro *t, ui linha, ui coluna, ui n,
   if (contador_de_jogadas == 0)
     return 1;
 
-  ui linha_ant = coordenada_anterior.linha;
-  ui coluna_ant = coordenada_anterior.coluna;
   return 1;
 }
 
-void fazInsert(Tabuleiro *t, ui linha, ui coluna, Casa jogador_atual) {
+/* fazInsert: vira todas as peças entre a nova peça e uma peça do mesmo jogador
+ */
+void fazInsert(Tabuleiro *t, int linha, int coluna, Casa jogador_atual) {
   Casa oponente = (jogador_atual == PRETO) ? BRANCO : PRETO;
 
-  // Vetores para checar as 8 direções (horizontal, vertical, diagonais)
   int dx[] = {-1, -1, -1, 0, 0, 1, 1, 1};
   int dy[] = {-1, 0, 1, -1, 1, -1, 0, 1};
 
-  for (int i = 0; i < 8; i++) {
-    // Coordenada do vizinho na direção (dx[i], dy[i])
-    int vizinho_l = linha + dx[i];
-    int vizinho_c = coluna + dy[i];
+  for (int dir = 0; dir < 8; ++dir) {
+    int x = linha + dx[dir];
+    int y = coluna + dy[dir];
 
-    // Coordenada da peça que "fecha" o sanduíche
-    int final_l = linha + 2 * dx[i];
-    int final_c = coluna + 2 * dy[i];
+    int flip_x[N];
+    int flip_y[N];
+    int flip_count = 0;
 
-    // Verifica se as coordenadas estão dentro do tabuleiro
-    if (vizinho_l >= 0 && vizinho_l < N && vizinho_c >= 0 && vizinho_c < N &&
-        final_l >= 0 && final_l < N && final_c >= 0 && final_c < N) {
-      // Verifica se o padrão JOGADOR - OPONENTE - JOGADOR existe
-      if (t->grid[vizinho_l][vizinho_c] == oponente &&
-          t->grid[final_l][final_c] == jogador_atual) {
-        printf("\nHouve Insert! \n");
-        t->grid[vizinho_l][vizinho_c] =
-            jogador_atual; // Vira a peça do oponente
+    while (x >= 0 && x < N && y >= 0 && y < N && t->grid[x][y] == oponente) {
+      if (flip_count < N) {
+        flip_x[flip_count] = x;
+        flip_y[flip_count] = y;
+        flip_count++;
+      }
+      x += dx[dir];
+      y += dy[dir];
+    }
+
+    if (flip_count > 0 && x >= 0 && x < N && y >= 0 && y < N &&
+        t->grid[x][y] == jogador_atual) {
+      for (int k = 0; k < flip_count; ++k) {
+        t->grid[flip_x[k]][flip_y[k]] = jogador_atual;
       }
     }
   }
@@ -319,17 +376,20 @@ int main(void) {
   printf("\x1B[2J\x1B[H");
 
   printf("\n\n\n\n\n\n\n\n\t\t\t\t1 - Iniciar novo jogo\n\n");
-  printf("\n\t\t\t\t2 - Carregar jogo\n\n");
+  printf("\n\t\t\t\t2 - Carregar jogo salvo (arquivo 'temp')\n\n");
   printf("\n\t\t\t\t3 - Sair\n\n");
   ui escolha = 0;
-  scanf("%d", &escolha);
+  if (scanf("%u", &escolha) != 1) {
+    printf("Entrada inválida. Saindo.\n");
+    return 1;
+  }
   printf("\x1B[2J\x1B[H");
 
   srand((unsigned)time(NULL));
   Tabuleiro tab;
   Casa jogador_atual;
   int status_jogo = 0; // 0=continua, 1=preto vence, 2=branco vence, 3=empate
-  ui linha, coluna;
+  int linha, coluna;
   Coordenada coordenada_anterior;
   Casa tipo_casa_anterior; // Valor inicial qualquer
   int contador_de_jogadas;
@@ -337,28 +397,55 @@ int main(void) {
   if (escolha == 1) {
     contador_de_jogadas = 0;
     inicia_tab(&tab, N);
-    coordenada_anterior.linha = -1, coordenada_anterior.coluna = -1;
+    coordenada_anterior.linha = -1;
+    coordenada_anterior.coluna = -1;
     tipo_casa_anterior = HORIZONTAL;
     jogador_atual = PRETO;
-  } /* else if (escolha == 2) {
-     carrega_partida(&contador_de_jogadas, &tab, &coordenada_anterior,
-                     &tipo_casa_anterior, &jogador_atual);
-   }*/
+  } else if (escolha == 2) {
+    carrega_partida(&contador_de_jogadas, &tab, &coordenada_anterior,
+                    &tipo_casa_anterior, &jogador_atual);
+    // se arquivo não existia, carrega_partida já colocou valores padrões
+  } else {
+    return 0;
+  }
 
   while (status_jogo == 0) {
     print_tab(&tab, N);
     printf("\nVez do jogador %s\n", nomeJogador(jogador_atual));
+    printf("(Digite -1 em 'Linha' para salvar a partida e sair)\n");
 
     while (true) {
       printf("Linha: ");
-      scanf("%u", &linha);
+      if (scanf("%d", &linha) != 1) {
+        printf("Entrada inválida. Tente novamente.\n");
+        // limpar buffer
+        int c;
+        while ((c = getchar()) != '\n' && c != EOF)
+          ;
+        continue;
+      }
+
+      if (linha == -1) {
+        // salvar e sair
+        salva_estado(&tab, jogador_atual, contador_de_jogadas,
+                     &coordenada_anterior, tipo_casa_anterior);
+        printf("Saindo do jogo (salvo).\n");
+        return 0;
+      }
 
       printf("Coluna: ");
-      scanf("%u", &coluna);
+      if (scanf("%d", &coluna) != 1) {
+        printf("Entrada inválida. Tente novamente.\n");
+        int c;
+        while ((c = getchar()) != '\n' && c != EOF)
+          ;
+        continue;
+      }
 
       // VALIDAÇÃO COMPLETA DA JOGADA
       bool jogada_valida = false;
-      if (linha < N && coluna < N && tab.grid[linha][coluna] != PRETO &&
+      if (linha >= 0 && linha < N && coluna >= 0 && coluna < N &&
+          tab.grid[linha][coluna] != PRETO &&
           tab.grid[linha][coluna] != BRANCO) {
         if (contador_de_jogadas == 0) {
           jogada_valida = true;
@@ -411,6 +498,9 @@ int main(void) {
                  coordenada_anterior.linha + coordenada_anterior.coluna))
               jogada_valida = true;
             break;
+          default:
+            jogada_valida = true;
+            break;
           }
         }
       }
@@ -431,9 +521,8 @@ int main(void) {
         printf("\x1B[2J\x1B[H");
 
         printf("\nCasa da rodada: %c\n", tipo_casa_anterior);
-        printf("\nUltima jogada foi na linha %d e na coluna %d",
+        printf("\nUltima jogada foi na linha %d e na coluna %d\n",
                coordenada_anterior.linha, coordenada_anterior.coluna);
-        printf("\n");
         break;
       } else {
         printf("\nJogada inválida! Tente novamente.\n");
@@ -447,6 +536,8 @@ int main(void) {
       else
         jogador_atual = PRETO;
     }
+
+    // opcional: salvar estado a cada jogada automática
     salva_estado(&tab, jogador_atual, contador_de_jogadas, &coordenada_anterior,
                  tipo_casa_anterior);
   }
